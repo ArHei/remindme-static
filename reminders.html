@@ -157,15 +157,25 @@
         header.innerText = title;
         listElement.appendChild(header);
 
+        // Regex to find links starting with http://, https://, or www.
+        const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+
         items.forEach(item => {
             const li = document.createElement('li');
             li.style.borderLeft = `4px solid ${borderStyle}`;
+            
             let badgeText = item.schedule_type;
             if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
             
+            // Convert text links into clickable HTML links safely
+            const formattedText = item.text.replace(urlRegex, (url) => {
+                const hyperLink = url.startsWith('http') ? url : `https://${url}`;
+                return `<a href="${hyperLink}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">${url}</a>`;
+            });
+            
             li.innerHTML = `
                 <div class="reminder-info">
-                    <span>${item.text}</span>
+                    <span>${formattedText}</span>
                     <span class="badge" style="background:${badgeBg}; color:${badgeColor};">${badgeText}</span>
                 </div>
                 <div class="reminder-actions">
