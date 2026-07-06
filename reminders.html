@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemindMe - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .add-reminder-form { display: flex; margin-top: 20px; }
+        .add-reminder-form input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px 0 0 4px; }
+        .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 0 4px 4px 0; cursor: pointer; }
+        ul { list-style: none; padding: 0; margin-top: 20px; }
+        li { background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; display: flex; justify-content: space-between; }
+        .date { font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h2>Your Reminders</h2>
+        <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+
+    <form class="add-reminder-form" id="reminder-form">
+        <input type="text" id="reminder-text" placeholder="Type a new reminder..." required />
+        <button type="submit">Add</button>
+    </form>
+
+    <ul id="reminders-list">
+        <!-- Reminders dynamically inserted here -->
+    </ul>
+</div>
+
+<script src="config.js"></script>
+<script>
+    let currentUser = null;
+
+    // Secure route check: Redirect back if not logged in
+    async function protectRoute() {
+        const { data: { user }, error } = await supabaseClient.auth.getUser();
+        if (error || !user) {
+            window.location.href = 'index.html';
+        } else {
+            currentUser = user;
+            fetchReminders();
+        }
+    }
+
+    // Pull from database
+    async function fetchReminders() {
+        const { data: reminders, error } = await supabaseClient
+            .from('reminders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("Error fetching reminders:", error.message);
+            return;
+        }
+
+        const listElement = document.getElementById('reminders-list');
+        listElement.innerHTML = reminders.length === 0 ? "<li>No reminders yet!</li>" : "";
+        
+        reminders.forEach(item => {
+            const li = document.createElement('li');
+            const dateStr = new Date(item.created_at).toLocaleDateString();
+            li.innerHTML = `<span>${item.text}</span> <span class="date">${dateStr}</span>`;
+            listElement.appendChild(li);
+        });
+    }
+
+    // Add entry into database
+    document.getElementById('reminder-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('reminder-text');
+        
+        const { data, error } = await supabaseClient
+            .from('reminders')
+            .insert([{ text: input.value, user_id: currentUser.id }]);
+
+        if (error) {
+            alert(error.message);
+        } else {
+            input.value = "";
+            fetchReminders(); // Refresh list display
+        }
+    });
+
+    // Handle Log Out
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    // Run security check on script execution
+    protectRoute();
+</script>
+</body>
+</html>
