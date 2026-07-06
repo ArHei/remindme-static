@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RemindMe - Login</title>
+    <!-- Include Supabase JS CDN v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .auth-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2563eb; }
+        .toggle-text { text-align: center; margin-top: 15px; font-size: 14px; color: #555; }
+        .toggle-text span { color: #3b82f6; cursor: pointer; text-decoration: underline; }
+        .message { color: red; text-align: center; font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <h2 id="auth-title">Login to RemindMe</h2>
+    <form id="auth-form">
+        <input type="email" id="email" placeholder="Email Address" required />
+        <input type="password" id="password" placeholder="Password" required />
+        <button type="submit" id="submit-btn">Sign In</button>
+    </form>
+    <div class="toggle-text">
+        <p id="toggle-link">Don't have an account? <span>Sign Up</span></p>
+    </div>
+    <div id="message" class="message"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+    let isSignUp = false;
+    const authForm = document.getElementById('auth-form');
+    const authTitle = document.getElementById('auth-title');
+    const submitBtn = document.getElementById('submit-btn');
+    const toggleLink = document.getElementById('toggle-link');
+    const messageDiv = document.getElementById('message');
+
+    // Check if user is already logged in
+    async function checkUser() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            window.location.href = 'reminders.html';
+        }
+    }
+    checkUser();
+
+    // Toggle between Sign In and Sign Up UI states
+    toggleLink.addEventListener('click', () => {
+        isSignUp = !isSignUp;
+        authTitle.innerText = isSignUp ? "Create Account" : "Login to RemindMe";
+        submitBtn.innerText = isSignUp ? "Sign Up" : "Sign In";
+        toggleLink.innerHTML = isSignUp ? "Already have an account? <span>Sign In</span>" : "Don't have an account? <span>Sign Up</span>";
+        messageDiv.innerText = "";
+    });
+
+    // Handle Form Submit
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        messageDiv.innerText = "";
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        if (isSignUp) {
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) {
+                messageDiv.innerText = error.message;
+            } else {
+                messageDiv.style.color = "green";
+                messageDiv.innerText = "Check your email for confirmation link (or try logging in if confirmation is turned off)!";
+            }
+        } else {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                messageDiv.innerText = error.message;
+            } else {
+                window.location.href = 'reminders.html';
+            }
+        }
+    });
+</script>
+</body>
+</html>
