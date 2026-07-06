@@ -11,15 +11,19 @@
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
         
-        .add-reminder-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; background: #f9fafb; padding: 15px; border-radius: 6px; }
+        .add-reminder-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; }
         .form-row { display: flex; gap: 10px; }
         .add-reminder-form input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .add-reminder-form select, .add-reminder-form input[type="date"] { padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 130px; }
         .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .cancel-btn { background: #6b7280 !important; }
         
         ul { list-style: none; padding: 0; margin-top: 20px; }
         li { background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; }
-        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #e0e7ff; color: #4338ca; font-weight: bold; text-transform: uppercase; }
+        .reminder-info { display: flex; flex-direction: column; gap: 4px; }
+        .reminder-actions { display: flex; gap: 8px; }
+        .edit-btn { background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #e0e7ff; color: #4338ca; font-weight: bold; text-transform: uppercase; width: fit-content; }
         .today-banner { background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: bold; text-align: center; }
     </style>
 </head>
@@ -27,14 +31,15 @@
 
 <div class="dashboard-container">
     <div class="header">
-        <h2>Your Reminders</h2>
+        <h2>Your Smart Reminders</h2>
         <button class="logout-btn" id="logout-btn">Log Out</button>
     </div>
 
     <div class="today-banner" id="today-banner"></div>
 
-    <!-- Enhanced Add Form -->
+    <!-- Contextual Form (Handles Add & Edit) -->
     <form class="add-reminder-form" id="reminder-form">
+        <h4 id="form-mode-title" style="margin: 0 0 5px 0; color: #374151;">Create New Reminder</h4>
         <div class="form-row">
             <input type="text" id="reminder-text" placeholder="What do you need to remember?" required />
         </div>
@@ -46,34 +51,33 @@
                 <option value="specific">Specific Date</option>
             </select>
             
-            <!-- Dynamic dynamic input values depending on selection -->
-            <div id="dynamic-value-container">
-                <!-- Fallback empty/all state -->
-            </div>
+            <div id="dynamic-value-container"></div>
             
-            <button type="submit">Add Reminder</button>
+            <button type="submit" id="submit-form-btn">Add Reminder</button>
+            <button type="button" id="cancel-edit-btn" class="cancel-btn" style="display: none;">Cancel</button>
         </div>
     </form>
 
-    <ul id="reminders-list">
-        <!-- Filtered reminders will appear here -->
-    </ul>
+    <ul id="reminders-list"></ul>
 </div>
 
 <script src="config.js"></script>
 <script>
     let currentUser = null;
+    let allReminders = []; // Cache to lookup items during editing
+    let editingReminderId = null; // Tracks if we are editing an item
 
-    // Elements
     const scheduleTypeSelect = document.getElementById('schedule-type');
     const dynamicValueContainer = document.getElementById('dynamic-value-container');
     const todayBanner = document.getElementById('today-banner');
+    const formModeTitle = document.getElementById('form-mode-title');
+    const submitFormBtn = document.getElementById('submit-form-btn');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const inputFields = document.getElementById('reminder-text');
 
-    // Display current human date status
     const today = new Date();
     todayBanner.innerText = `Today is ${today.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
-    // Route Protection
     async function protectRoute() {
         const { data: { user }, error } = await supabaseClient.auth.getUser();
         if (error || !user) {
@@ -84,9 +88,8 @@
         }
     }
 
-    // Change input selector contextually 
-    scheduleTypeSelect.addEventListener('change', (e) => {
-        const type = e.target.value;
+    // Helper to generate scheduling UI selectors
+    function renderDynamicScheduleInputs(type, preselectedValue = "") {
         if (type === 'all') {
             dynamicValueContainer.innerHTML = '';
         } else if (type === 'weekday') {
@@ -104,109 +107,135 @@
         } else if (type === 'specific') {
             dynamicValueContainer.innerHTML = `<input type="date" id="schedule-value" required />`;
         }
-    });
 
-    // Smart Local Evaluation Logic
+        if (preselectedValue) {
+            const valEl = document.getElementById('schedule-value');
+            if (valEl) valEl.value = preselectedValue;
+        }
+    }
+
+    scheduleTypeSelect.addEventListener('change', (e) => renderDynamicScheduleInputs(e.target.value));
+
     function shouldDisplayToday(item) {
         if (item.schedule_type === 'all') return true;
-
-        const currentDayName = today.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., "Monday"
-        const currentMonthDay = today.getDate().toString(); // e.g., "6"
-        
-        // Match specific date strings formatted as YYYY-MM-DD
+        const currentDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+        const currentMonthDay = today.getDate().toString();
         const userTimezoneOffset = today.getTimezoneOffset() * 60000;
         const currentLocalDateString = (new Date(today - userTimezoneOffset)).toISOString().split('T')[0];
 
         if (item.schedule_type === 'weekday' && item.schedule_value === currentDayName) return true;
         if (item.schedule_type === 'monthday' && item.schedule_value === currentMonthDay) return true;
         if (item.schedule_type === 'specific' && item.schedule_value === currentLocalDateString) return true;
-
         return false;
     }
 
-    // Fetch and Process Items
     async function fetchAndFilterReminders() {
         const { data: reminders, error } = await supabaseClient
             .from('reminders')
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error(error.message);
-            return;
-        }
-
+        if (error) return console.error(error.message);
+        
+        allReminders = reminders; // Update cache
         const listElement = document.getElementById('reminders-list');
-        listElement.innerHTML = "";
+        listElement.innerHTML = reminders.length === 0 ? "<li>No reminders found! Add one above.</li>" : "";
 
-        if (reminders.length === 0) {
-            listElement.innerHTML = "<li>No reminders found! Add one above.</li>";
-            return;
-        }
-
-        // Split reminders into two visual arrays
         const dueToday = reminders.filter(shouldDisplayToday);
         const futureReminders = reminders.filter(item => !shouldDisplayToday(item));
 
-        // 1. Render items due today
-        if (dueToday.length > 0) {
-            const todayHeader = document.createElement('li');
-            todayHeader.style.cssText = "background:none; border:none; font-weight:bold; color:#1e3a8a; margin-top:10px; padding-left:0;";
-            todayHeader.innerText = "🔥 Active Today:";
-            listElement.appendChild(todayHeader);
-
-            dueToday.forEach(item => {
-                const li = document.createElement('li');
-                li.style.borderLeft = "4px solid #10b981"; // Green indicator for active
-                let badgeText = item.schedule_type;
-                if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
-                
-                li.innerHTML = `<span>${item.text}</span> <span class="badge" style="background:#d1fae5; color:#065f46;">${badgeText}</span>`;
-                listElement.appendChild(li);
-            });
-        }
-
-        // 2. Render remaining items
-        if (futureReminders.length > 0) {
-            const backupHeader = document.createElement('li');
-            backupHeader.style.cssText = "background:none; border:none; font-weight:bold; color:#4b5563; margin-top:20px; padding-left:0;";
-            backupHeader.innerText = "📅 Other Scheduled Reminders:";
-            listElement.appendChild(backupHeader);
-
-            futureReminders.forEach(item => {
-                const li = document.createElement('li');
-                li.style.borderLeft = "4px solid #9ca3af"; // Gray indicator for inactive today
-                let badgeText = item.schedule_type;
-                if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
-                
-                li.innerHTML = `<span>${item.text}</span> <span class="badge">${badgeText}</span>`;
-                listElement.appendChild(li);
-            });
-        }
+        renderSection(dueToday, "🔥 Active Today", "#10b981", "#d1fae5", "#065f46");
+        renderSection(futureReminders, "📅 Other Scheduled Reminders", "#9ca3af", "#e0e7ff", "#4338ca");
     }
 
-    // Write Form Submissions
+    function renderSection(items, title, borderStyle, badgeBg, badgeColor) {
+        if (items.length === 0) return;
+        const listElement = document.getElementById('reminders-list');
+        
+        const header = document.createElement('li');
+        header.style.cssText = "background:none; border:none; font-weight:bold; color:#374151; margin-top:15px; padding-left:0;";
+        header.innerText = title;
+        listElement.appendChild(header);
+
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.style.borderLeft = `4px solid ${borderStyle}`;
+            let badgeText = item.schedule_type;
+            if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
+            
+            li.innerHTML = `
+                <div class="reminder-info">
+                    <span>${item.text}</span>
+                    <span class="badge" style="background:${badgeBg}; color:${badgeColor};">${badgeText}</span>
+                </div>
+                <div class="reminder-actions">
+                    <button class="edit-btn" onclick="startEditMode('${item.id}')">Edit</button>
+                </div>
+            `;
+            listElement.appendChild(li);
+        });
+    }
+
+    // Enter edit layout mode 
+    window.startEditMode = function(id) {
+        const item = allReminders.find(r => r.id === id);
+        if (!item) return;
+
+        editingReminderId = id;
+        formModeTitle.innerText = "Edit Reminder";
+        submitFormBtn.innerText = "Save Changes";
+        submitFormBtn.style.background = "#3b82f6";
+        cancelEditBtn.style.display = "inline-block";
+        
+        inputFields.value = item.text;
+        scheduleTypeSelect.value = item.schedule_type;
+        renderDynamicScheduleInputs(item.schedule_type, item.schedule_value);
+        inputFields.focus();
+    };
+
+    function resetForm() {
+        editingReminderId = null;
+        formModeTitle.innerText = "Create New Reminder";
+        submitFormBtn.innerText = "Add Reminder";
+        submitFormBtn.style.background = "#10b981";
+        cancelEditBtn.style.display = "none";
+        inputFields.value = "";
+        scheduleTypeSelect.value = "all";
+        dynamicValueContainer.innerHTML = '';
+    }
+
+    cancelEditBtn.addEventListener('click', resetForm);
+
+    // Form operational submit handling
     document.getElementById('reminder-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const input = document.getElementById('reminder-text');
         const type = scheduleTypeSelect.value;
         const valueEl = document.getElementById('schedule-value');
         const value = valueEl ? valueEl.value : null;
-        
-        const { error } = await supabaseClient
-            .from('reminders')
-            .insert([{ 
-                text: input.value, 
-                user_id: currentUser.id,
-                schedule_type: type,
-                schedule_value: value
-            }]);
 
-        if (error) {
-            alert(error.message);
+        if (editingReminderId) {
+            // Update operation
+            const { error } = await supabaseClient
+                .from('reminders')
+                .update({ text: inputFields.value, schedule_type: type, schedule_value: value })
+                .eq('id', editingReminderId);
+
+            if (error) alert(error.message);
+            else {
+                resetForm();
+                fetchAndFilterReminders();
+            }
         } else {
-            input.value = "";
-            fetchAndFilterReminders(); 
+            // Creation operation
+            const { error } = await supabaseClient
+                .from('reminders')
+                .insert([{ text: inputFields.value, user_id: currentUser.id, schedule_type: type, schedule_value: value }]);
+
+            if (error) alert(error.message);
+            else {
+                inputFields.value = "";
+                fetchAndFilterReminders();
+            }
         }
     });
 
