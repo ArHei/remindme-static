@@ -7,32 +7,56 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
-        .dashboard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .dashboard-container { max-width: 650px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
-        .add-reminder-form { display: flex; margin-top: 20px; }
-        .add-reminder-form input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px 0 0 4px; }
-        .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 0 4px 4px 0; cursor: pointer; }
+        
+        .add-reminder-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; background: #f9fafb; padding: 15px; border-radius: 6px; }
+        .form-row { display: flex; gap: 10px; }
+        .add-reminder-form input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .add-reminder-form select, .add-reminder-form input[type="date"] { padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 130px; }
+        .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
         ul { list-style: none; padding: 0; margin-top: 20px; }
-        li { background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; display: flex; justify-content: space-between; }
-        .date { font-size: 12px; color: #888; }
+        li { background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; }
+        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #e0e7ff; color: #4338ca; font-weight: bold; text-transform: uppercase; }
+        .today-banner { background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: bold; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
     <div class="header">
-        <h2>Your Reminders</h2>
+        <h2>Your Smart Reminders</h2>
         <button class="logout-btn" id="logout-btn">Log Out</button>
     </div>
 
+    <div class="today-banner" id="today-banner"></div>
+
+    <!-- Enhanced Add Form -->
     <form class="add-reminder-form" id="reminder-form">
-        <input type="text" id="reminder-text" placeholder="Type a new reminder..." required />
-        <button type="submit">Add</button>
+        <div class="form-row">
+            <input type="text" id="reminder-text" placeholder="What do you need to remember?" required />
+        </div>
+        <div class="form-row">
+            <select id="schedule-type">
+                <option value="all">Show Every Day</option>
+                <option value="weekday">Day of the Week</option>
+                <option value="monthday">Day of the Month</option>
+                <option value="specific">Specific Date</option>
+            </select>
+            
+            <!-- Dynamic dynamic input values depending on selection -->
+            <div id="dynamic-value-container">
+                <!-- Fallback empty/all state -->
+            </div>
+            
+            <button type="submit">Add Reminder</button>
+        </div>
     </form>
 
     <ul id="reminders-list">
-        <!-- Reminders dynamically inserted here -->
+        <!-- Filtered reminders will appear here -->
     </ul>
 </div>
 
@@ -40,64 +64,132 @@
 <script>
     let currentUser = null;
 
-    // Secure route check: Redirect back if not logged in
+    // Elements
+    const scheduleTypeSelect = document.getElementById('schedule-type');
+    const dynamicValueContainer = document.getElementById('dynamic-value-container');
+    const todayBanner = document.getElementById('today-banner');
+
+    // Display current human date status
+    const today = new Date();
+    todayBanner.innerText = `Today is ${today.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+
+    // Route Protection
     async function protectRoute() {
         const { data: { user }, error } = await supabaseClient.auth.getUser();
         if (error || !user) {
             window.location.href = 'index.html';
         } else {
             currentUser = user;
-            fetchReminders();
+            fetchAndFilterReminders();
         }
     }
 
-    // Pull from database
-    async function fetchReminders() {
+    // Change input selector contextually 
+    scheduleTypeSelect.addEventListener('change', (e) => {
+        const type = e.target.value;
+        if (type === 'all') {
+            dynamicValueContainer.innerHTML = '';
+        } else if (type === 'weekday') {
+            dynamicValueContainer.innerHTML = `
+                <select id="schedule-value" required>
+                    <option value="Sunday">Sunday</option><option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option><option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                </select>`;
+        } else if (type === 'monthday') {
+            let options = '';
+            for(let i=1; i<=31; i++) options += `<option value="${i}">${i}</option>`;
+            dynamicValueContainer.innerHTML = `<select id="schedule-value" required>${options}</select>`;
+        } else if (type === 'specific') {
+            dynamicValueContainer.innerHTML = `<input type="date" id="schedule-value" required />`;
+        }
+    });
+
+    // Smart Local Evaluation Logic
+    function shouldDisplayToday(item) {
+        if (item.schedule_type === 'all') return true;
+
+        const currentDayName = today.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., "Monday"
+        const currentMonthDay = today.getDate().toString(); // e.g., "6"
+        
+        // Match specific date strings formatted as YYYY-MM-DD
+        const userTimezoneOffset = today.getTimezoneOffset() * 60000;
+        const currentLocalDateString = (new Date(today - userTimezoneOffset)).toISOString().split('T')[0];
+
+        if (item.schedule_type === 'weekday' && item.schedule_value === currentDayName) return true;
+        if (item.schedule_type === 'monthday' && item.schedule_value === currentMonthDay) return true;
+        if (item.schedule_type === 'specific' && item.schedule_value === currentLocalDateString) return true;
+
+        return false;
+    }
+
+    // Fetch and Process Items
+    async function fetchAndFilterReminders() {
         const { data: reminders, error } = await supabaseClient
             .from('reminders')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error("Error fetching reminders:", error.message);
+            console.error(error.message);
             return;
         }
 
         const listElement = document.getElementById('reminders-list');
-        listElement.innerHTML = reminders.length === 0 ? "<li>No reminders yet!</li>" : "";
-        
-        reminders.forEach(item => {
+        listElement.innerHTML = "";
+
+        // Run JavaScript matching logic locally
+        const matchingReminders = reminders.filter(shouldDisplayToday);
+
+        if (matchingReminders.length === 0) {
+            listElement.innerHTML = "<li>No active reminders scheduled for today!</li>";
+            return;
+        }
+
+        matchingReminders.forEach(item => {
             const li = document.createElement('li');
-            const dateStr = new Date(item.created_at).toLocaleDateString();
-            li.innerHTML = `<span>${item.text}</span> <span class="date">${dateStr}</span>`;
+            let badgeText = item.schedule_type;
+            if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
+            
+            li.innerHTML = `
+                <span>${item.text}</span> 
+                <span class="badge">${badgeText}</span>
+            `;
             listElement.appendChild(li);
         });
     }
 
-    // Add entry into database
+    // Write Form Submissions
     document.getElementById('reminder-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const input = document.getElementById('reminder-text');
+        const type = scheduleTypeSelect.value;
+        const valueEl = document.getElementById('schedule-value');
+        const value = valueEl ? valueEl.value : null;
         
-        const { data, error } = await supabaseClient
+        const { error } = await supabaseClient
             .from('reminders')
-            .insert([{ text: input.value, user_id: currentUser.id }]);
+            .insert([{ 
+                text: input.value, 
+                user_id: currentUser.id,
+                schedule_type: type,
+                schedule_value: value
+            }]);
 
         if (error) {
             alert(error.message);
         } else {
             input.value = "";
-            fetchReminders(); // Refresh list display
+            fetchAndFilterReminders(); 
         }
     });
 
-    // Handle Log Out
     document.getElementById('logout-btn').addEventListener('click', async () => {
         await supabaseClient.auth.signOut();
         window.location.href = 'index.html';
     });
 
-    // Run security check on script execution
     protectRoute();
 </script>
 </body>
