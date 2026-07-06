@@ -139,25 +139,50 @@
         const listElement = document.getElementById('reminders-list');
         listElement.innerHTML = "";
 
-        // Run JavaScript matching logic locally
-        const matchingReminders = reminders.filter(shouldDisplayToday);
-
-        if (matchingReminders.length === 0) {
-            listElement.innerHTML = "<li>No active reminders scheduled for today!</li>";
+        if (reminders.length === 0) {
+            listElement.innerHTML = "<li>No reminders found! Add one above.</li>";
             return;
         }
 
-        matchingReminders.forEach(item => {
-            const li = document.createElement('li');
-            let badgeText = item.schedule_type;
-            if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
-            
-            li.innerHTML = `
-                <span>${item.text}</span> 
-                <span class="badge">${badgeText}</span>
-            `;
-            listElement.appendChild(li);
-        });
+        // Split reminders into two visual arrays
+        const dueToday = reminders.filter(shouldDisplayToday);
+        const futureReminders = reminders.filter(item => !shouldDisplayToday(item));
+
+        // 1. Render items due today
+        if (dueToday.length > 0) {
+            const todayHeader = document.createElement('li');
+            todayHeader.style.cssText = "background:none; border:none; font-weight:bold; color:#1e3a8a; margin-top:10px; padding-left:0;";
+            todayHeader.innerText = "🔥 Active Today:";
+            listElement.appendChild(todayHeader);
+
+            dueToday.forEach(item => {
+                const li = document.createElement('li');
+                li.style.borderLeft = "4px solid #10b981"; // Green indicator for active
+                let badgeText = item.schedule_type;
+                if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
+                
+                li.innerHTML = `<span>${item.text}</span> <span class="badge" style="background:#d1fae5; color:#065f46;">${badgeText}</span>`;
+                listElement.appendChild(li);
+            });
+        }
+
+        // 2. Render remaining items
+        if (futureReminders.length > 0) {
+            const backupHeader = document.createElement('li');
+            backupHeader.style.cssText = "background:none; border:none; font-weight:bold; color:#4b5563; margin-top:20px; padding-left:0;";
+            backupHeader.innerText = "📅 Other Scheduled Reminders:";
+            listElement.appendChild(backupHeader);
+
+            futureReminders.forEach(item => {
+                const li = document.createElement('li');
+                li.style.borderLeft = "4px solid #9ca3af"; // Gray indicator for inactive today
+                let badgeText = item.schedule_type;
+                if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
+                
+                li.innerHTML = `<span>${item.text}</span> <span class="badge">${badgeText}</span>`;
+                listElement.appendChild(li);
+            });
+        }
     }
 
     // Write Form Submissions
