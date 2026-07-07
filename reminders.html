@@ -3,45 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RemindMe - Dashboard</title>
+    <title>RemindMe - Today Focus Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
-        .dashboard-container { max-width: 650px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; }
-        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .dashboard-container { max-width: 1700px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         
-        .add-reminder-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; }
+        .add-reminder-form { background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; max-width: 700px; margin: 0 auto 30px auto; display: flex; flex-direction: column; gap: 12px; }
         .form-row { display: flex; gap: 10px; }
-        .add-reminder-form input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .add-reminder-form select, .add-reminder-form input[type="date"] { padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 130px; }
-        .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .add-reminder-form input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .add-reminder-form select, .add-reminder-form input[type="date"] { padding: 10px; border: 1px solid #ddd; border-radius: 6px; min-width: 140px; font-size: 14px; }
+        .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .cancel-btn { background: #6b7280 !important; }
+
+        /* MAIN ASYMMETRIC GRID SYSTEM */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 20px; align-items: start; }
         
-        ul { list-style: none; padding: 0; margin-top: 20px; }
-        li { background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; }
-        .reminder-info { display: flex; flex-direction: column; gap: 4px; }
-        .reminder-actions { display: flex; gap: 8px; }
-        .edit-btn { background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #e0e7ff; color: #4338ca; font-weight: bold; text-transform: uppercase; width: fit-content; }
-        .today-banner { background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: bold; text-align: center; }
+        @media (min-width: 1200px) { 
+            /* 4-Column system: Columns 1, 2, 3 belong to "Today", Column 4 belongs to "Upcoming" */
+            .dashboard-grid { grid-template-columns: repeat(4, 1fr); }
+            .today-super-section { grid-column: span 3; }
+        }
+
+        /* Today's Multi-Column Layout Grid */
+        .today-cards-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 768px) { .today-cards-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1200px) { .today-cards-grid { grid-template-columns: repeat(3, 1fr); } }
+
+        /* Column Styles */
+        .panel { background: #f4f5f7; border-radius: 10px; padding: 18px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
+        .panel.today-panel { background: #fffbeb; border: 1px solid #fef3c7; }
+        
+        .panel-header { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .panel.today-panel .panel-header { color: #b45309; border-bottom-color: #fef3c7; }
+        .panel-count { background: #e5e7eb; color: #4b5563; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+        .panel.today-panel .panel-count { background: #fef3c7; color: #b45309; }
+
+        /* Backlog Sub-Headers styling */
+        .backlog-sub-header { font-size: 12px; font-weight: bold; color: #6b7280; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+
+        /* CARD STYLES */
+        .card { background: white; padding: 14px; border-radius: 6px; border-left: 4px solid #9ca3af; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 10px; }
+        .card-text { font-size: 14px; color: #1f2937; word-break: break-word; line-height: 1.4; }
+        .card-meta { display: flex; justify-content: space-between; align-items: center; }
+        .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e5e7eb; color: #4b5563; font-weight: bold; text-transform: uppercase; }
+        .card-actions { display: flex; gap: 6px; justify-content: flex-end; }
+        .action-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .action-btn.archive { background: #fee2e2; color: #dc2626; }
+
+        /* Today Highlight Styling across columns 1-3 */
+        .card.is-today { border-left-color: #f59e0b; box-shadow: 0 2px 5px rgba(245, 158, 11, 0.12); }
+        .card.is-today .badge { background: #fef3c7; color: #b45309; }
+        
+        .today-banner { background: #fef3c7; color: #92400e; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; text-align: center; }
+        .backlog-cards-container { display: flex; flex-direction: column; gap: 12px; }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
     <div class="header">
-        <h2>Your Smart Reminders</h2>
+        <h2>Smart Focus Dashboard</h2>
         <button class="logout-btn" id="logout-btn">Log Out</button>
     </div>
 
     <div class="today-banner" id="today-banner"></div>
 
-    <!-- Contextual Form (Handles Add & Edit) -->
     <form class="add-reminder-form" id="reminder-form">
         <h4 id="form-mode-title" style="margin: 0 0 5px 0; color: #374151;">Create New Reminder</h4>
         <div class="form-row">
-            <input type="text" id="reminder-text" placeholder="What do you need to remember?" required />
+            <input type="text" id="reminder-text" placeholder="Type a reminder (e.g. Bring keys or add a link www.google.com)" required />
         </div>
         <div class="form-row">
             <select id="schedule-type">
@@ -50,22 +83,34 @@
                 <option value="monthday">Day of the Month</option>
                 <option value="specific">Specific Date</option>
             </select>
-            
             <div id="dynamic-value-container"></div>
-            
             <button type="submit" id="submit-form-btn">Add Reminder</button>
             <button type="button" id="cancel-edit-btn" class="cancel-btn" style="display: none;">Cancel</button>
         </div>
     </form>
 
-    <ul id="reminders-list"></ul>
+    <div class="dashboard-grid">
+        
+        <div class="panel today-panel today-super-section">
+            <div class="panel-header">🔥 Active Today <span class="panel-count" id="count-today">0</span></div>
+            <div class="today-cards-grid" id="container-today">
+                </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">📅 Upcoming Backlog <span class="panel-count" id="count-backlog">0</span></div>
+            <div class="backlog-cards-container" id="container-backlog">
+                </div>
+        </div>
+
+    </div>
 </div>
 
 <script src="config.js"></script>
 <script>
     let currentUser = null;
-    let allReminders = []; // Cache to lookup items during editing
-    let editingReminderId = null; // Tracks if we are editing an item
+    let allReminders = [];
+    let editingReminderId = null;
 
     const scheduleTypeSelect = document.getElementById('schedule-type');
     const dynamicValueContainer = document.getElementById('dynamic-value-container');
@@ -84,15 +129,13 @@
             window.location.href = 'index.html';
         } else {
             currentUser = user;
-            fetchAndFilterReminders();
+            fetchAndRenderLayout();
         }
     }
 
-    // Helper to generate scheduling UI selectors
     function renderDynamicScheduleInputs(type, preselectedValue = "") {
-        if (type === 'all') {
-            dynamicValueContainer.innerHTML = '';
-        } else if (type === 'weekday') {
+        if (type === 'all') { dynamicValueContainer.innerHTML = ''; } 
+        else if (type === 'weekday') {
             dynamicValueContainer.innerHTML = `
                 <select id="schedule-value" required>
                     <option value="Sunday">Sunday</option><option value="Monday">Monday</option>
@@ -107,7 +150,6 @@
         } else if (type === 'specific') {
             dynamicValueContainer.innerHTML = `<input type="date" id="schedule-value" required />`;
         }
-
         if (preselectedValue) {
             const valEl = document.getElementById('schedule-value');
             if (valEl) valEl.value = preselectedValue;
@@ -116,7 +158,7 @@
 
     scheduleTypeSelect.addEventListener('change', (e) => renderDynamicScheduleInputs(e.target.value));
 
-    function shouldDisplayToday(item) {
+    function isDueToday(item) {
         if (item.schedule_type === 'all') return true;
         const currentDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
         const currentMonthDay = today.getDate().toString();
@@ -129,64 +171,95 @@
         return false;
     }
 
-    async function fetchAndFilterReminders() {
-        const { data: reminders, error } = await supabaseClient
-            .from('reminders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) return console.error(error.message);
-        
-        allReminders = reminders; // Update cache
-        const listElement = document.getElementById('reminders-list');
-        listElement.innerHTML = reminders.length === 0 ? "<li>No reminders found! Add one above.</li>" : "";
-
-        const dueToday = reminders.filter(shouldDisplayToday);
-        const futureReminders = reminders.filter(item => !shouldDisplayToday(item));
-
-        renderSection(dueToday, "🔥 Active Today", "#10b981", "#d1fae5", "#065f46");
-        renderSection(futureReminders, "📅 Other Scheduled Reminders", "#9ca3af", "#e0e7ff", "#4338ca");
-    }
-
-    function renderSection(items, title, borderStyle, badgeBg, badgeColor) {
-        if (items.length === 0) return;
-        const listElement = document.getElementById('reminders-list');
-        
-        const header = document.createElement('li');
-        header.style.cssText = "background:none; border:none; font-weight:bold; color:#374151; margin-top:15px; padding-left:0;";
-        header.innerText = title;
-        listElement.appendChild(header);
-
-        // Regex to find links starting with http://, https://, or www.
+    // Helper utility to make text elements secure and convert hyperlinks
+    function formatCardText(rawText) {
         const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
-
-        items.forEach(item => {
-            const li = document.createElement('li');
-            li.style.borderLeft = `4px solid ${borderStyle}`;
-            
-            let badgeText = item.schedule_type;
-            if (item.schedule_type !== 'all') badgeText += `: ${item.schedule_value}`;
-            
-            // Convert text links into clickable HTML links safely
-            const formattedText = item.text.replace(urlRegex, (url) => {
-                const hyperLink = url.startsWith('http') ? url : `https://${url}`;
-                return `<a href="${hyperLink}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">${url}</a>`;
-            });
-            
-            li.innerHTML = `
-                <div class="reminder-info">
-                    <span>${formattedText}</span>
-                    <span class="badge" style="background:${badgeBg}; color:${badgeColor};">${badgeText}</span>
-                </div>
-                <div class="reminder-actions">
-                    <button class="edit-btn" onclick="startEditMode('${item.id}')">Edit</button>
-                </div>
-            `;
-            listElement.appendChild(li);
+        return rawText.replace(urlRegex, (url) => {
+            const hyperLink = url.startsWith('http') ? url : `https://${url}`;
+            return `<a href="${hyperLink}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6; font-weight:bold;">${url}</a>`;
         });
     }
 
-    // Enter edit layout mode 
+    // Helper utility to assemble identical card structures
+    function createCardHtml(item, activeToday) {
+        let badgeLabel = item.schedule_type === 'all' ? "Daily" : item.schedule_value;
+        return `
+            <div class="card ${activeToday ? 'is-today' : ''}">
+                <div class="card-text">${formatCardText(item.text)}</div>
+                <div class="card-meta">
+                    <span class="badge">${badgeLabel}</span>
+                    <div class="card-actions">
+                        <button class="action-btn" onclick="startEditMode('${item.id}')">Edit</button>
+                        <button class="action-btn archive" onclick="archiveReminder('${item.id}')">Complete</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function fetchAndRenderLayout() {
+        const { data: reminders, error } = await supabaseClient
+            .from('reminders')
+            .select('*')
+            .eq('is_completed', false)
+            .order('created_at', { ascending: false });
+
+        if (error) return console.error(error.message);
+        allReminders = reminders;
+
+        // Clear layout boards
+        const todayGrid = document.getElementById('container-today');
+        const backlogColumn = document.getElementById('container-backlog');
+        todayGrid.innerHTML = "";
+        backlogColumn.innerHTML = "";
+
+        const dueTodayItems = reminders.filter(isDueToday);
+        const upcomingItems = reminders.filter(item => !isDueToday(item));
+
+        document.getElementById('count-today').innerText = dueTodayItems.length;
+        document.getElementById('count-backlog').innerText = upcomingItems.length;
+
+        // 1. Render Today Items (Distributed cleanly inside the 3-column masonry grid)
+        if (dueTodayItems.length === 0) {
+            todayGrid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 20px; color:#9b7c3e;">🎉 No reminders active for today! Rest easy.</div>`;
+        } else {
+            dueTodayItems.forEach(item => {
+                todayGrid.insertAdjacentHTML('beforeend', createCardHtml(item, true));
+            });
+        }
+
+        // 2. Render Upcoming Backlog Items segmented neatly inside Column 4
+        if (upcomingItems.length === 0) {
+            backlogColumn.innerHTML = `<div style="text-align:center; padding: 20px; color:#888;">No upcoming backlog items.</div>`;
+        } else {
+            const weekly = upcomingItems.filter(i => i.schedule_type === 'weekday');
+            const monthly = upcomingItems.filter(i => i.schedule_type === 'monthday');
+            const specific = upcomingItems.filter(i => i.schedule_type === 'specific');
+
+            const appendBacklogGroup = (title, itemsList) => {
+                if (itemsList.length === 0) return;
+                backlogColumn.insertAdjacentHTML('beforeend', `<div class="backlog-sub-header">${title} (${itemsList.length})</div>`);
+                itemsList.forEach(item => {
+                    backlogColumn.insertAdjacentHTML('beforeend', createCardHtml(item, false));
+                });
+            };
+
+            appendBacklogGroup("📅 Weekly Backlog", weekly);
+            appendBacklogGroup("🗓️ Monthly Backlog", monthly);
+            appendBacklogGroup("🎯 Future Targets", specific);
+        }
+    }
+
+    window.archiveReminder = async function(id) {
+        const { error } = await supabaseClient
+            .from('reminders')
+            .update({ is_completed: true })
+            .eq('id', id);
+
+        if (error) alert(error.message);
+        else fetchAndRenderLayout();
+    };
+
     window.startEditMode = function(id) {
         const item = allReminders.find(r => r.id === id);
         if (!item) return;
@@ -201,6 +274,7 @@
         scheduleTypeSelect.value = item.schedule_type;
         renderDynamicScheduleInputs(item.schedule_type, item.schedule_value);
         inputFields.focus();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     function resetForm() {
@@ -216,7 +290,6 @@
 
     cancelEditBtn.addEventListener('click', resetForm);
 
-    // Form operational submit handling
     document.getElementById('reminder-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const type = scheduleTypeSelect.value;
@@ -224,28 +297,20 @@
         const value = valueEl ? valueEl.value : null;
 
         if (editingReminderId) {
-            // Update operation
             const { error } = await supabaseClient
                 .from('reminders')
                 .update({ text: inputFields.value, schedule_type: type, schedule_value: value })
                 .eq('id', editingReminderId);
 
             if (error) alert(error.message);
-            else {
-                resetForm();
-                fetchAndFilterReminders();
-            }
+            else { resetForm(); fetchAndRenderLayout(); }
         } else {
-            // Creation operation
             const { error } = await supabaseClient
                 .from('reminders')
                 .insert([{ text: inputFields.value, user_id: currentUser.id, schedule_type: type, schedule_value: value }]);
 
             if (error) alert(error.message);
-            else {
-                inputFields.value = "";
-                fetchAndFilterReminders();
-            }
+            else { inputFields.value = ""; fetchAndRenderLayout(); }
         }
     });
 
