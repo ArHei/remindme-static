@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RemindMe - 5 Column Focus Matrix</title>
+    <title>RemindMe - 6 Column Focus Matrix</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .dashboard-container { max-width: 1850px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .dashboard-container { max-width: 1920px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         
@@ -18,34 +18,37 @@
         .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .cancel-btn { background: #6b7280 !important; }
 
-        /* THE 5-COLUMN MATRIX SYSTEM */
+        /* THE ADVANCED ASYMMETRIC GRID SYSTEM */
         .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; align-items: start; }
         
-        @media (min-width: 1400px) { 
-            /* Creates a mathematically balanced 5-column grid layout */
-            .dashboard-grid { grid-template-columns: repeat(5, 1fr); }
+        @media (min-width: 1500px) { 
+            /* Creates a balanced 7-slot footprint layout */
+            .dashboard-grid { grid-template-columns: repeat(7, 1fr); }
             .today-unique-super-section { grid-column: span 3; }
         }
 
-        /* Sub-grid system spreading unique entries over 3 distinct slots */
+        /* Sub-grid system layout spreading unique entries across 3 slots */
         .today-cards-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
         @media (min-width: 768px) { .today-cards-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (min-width: 1400px) { .today-cards-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 1500px) { .today-cards-grid { grid-template-columns: repeat(3, 1fr); } }
 
         /* Structural Panel Accents */
         .panel { background: #f4f5f7; border-radius: 10px; padding: 18px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); min-height: 350px; }
+        .panel.overdue-panel { background: #fef2f2; border: 1px solid #fee2e2; }
         .panel.today-unique-panel { background: #fffbeb; border: 1px solid #fef3c7; }
         .panel.daily-panel { background: #f0fdf4; border: 1px solid #dcfce7; }
         
         .panel-header { font-size: 1rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .panel.overdue-panel .panel-header { color: #991b1b; border-bottom-color: #fee2e2; }
         .panel.today-unique-panel .panel-header { color: #b45309; border-bottom-color: #fef3c7; }
         .panel.daily-panel .panel-header { color: #166534; border-bottom-color: #bbf7d0; }
         
         .panel-count { background: #e5e7eb; color: #4b5563; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+        .panel.overdue-panel .panel-count { background: #fee2e2; color: #991b1b; }
         .panel.today-unique-panel .panel-count { background: #fef3c7; color: #b45309; }
         .panel.daily-panel .panel-count { background: #dcfce7; color: #166534; }
 
-        .backlog-sub-header { font-size: 11px; font-weight: bold; color: #6b7280; text-transform: uppercase; margin-top: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 4px; }
+        .backlog-sub-header { font-size: 11px; font-weight: bold; color: #6b7280; text-transform: uppercase; margin-top: 5px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 4px; }
 
         /* CORE COMPACT CARDS */
         .card { background: white; padding: 14px; border-radius: 6px; border-left: 4px solid #9ca3af; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 10px; }
@@ -56,7 +59,9 @@
         .action-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
         .action-btn.archive { background: #fee2e2; color: #dc2626; }
 
-        /* Theme highlight overrides */
+        /* Dynamic Theme Palette Override Rules */
+        .panel.overdue-panel .card { border-left-color: #ef4444; background: #fff5f5; }
+        .panel.overdue-panel .badge { background: #fee2e2; color: #991b1b; }
         .panel.today-unique-panel .card { border-left-color: #f59e0b; }
         .panel.today-unique-panel .badge { background: #fef3c7; color: #b45309; }
         .panel.daily-panel .card { border-left-color: #22c55e; }
@@ -76,7 +81,6 @@
 
     <div class="today-banner" id="today-banner"></div>
 
-    <!-- Creator Form -->
     <form class="add-reminder-form" id="reminder-form">
         <h4 id="form-mode-title" style="margin: 0 0 5px 0; color: #374151;">Create New Reminder</h4>
         <div class="form-row">
@@ -95,25 +99,31 @@
         </div>
     </form>
 
-    <!-- ASYMMETRIC GRID INTERFACE -->
     <div class="dashboard-grid">
         
-        <!-- BLOCK 1: Active Today - Excludes Dailies (Spans Columns 1, 2, 3) -->
+        <div class="panel overdue-panel">
+            <div class="panel-header">⚠️ Overdue <span class="panel-count" id="count-overdue">0</span></div>
+            <div class="stack-container" id="container-overdue"></div>
+        </div>
+
         <div class="panel today-unique-panel today-unique-super-section">
             <div class="panel-header">🎯 Today's Schedule <span class="panel-count" id="count-unique">0</span></div>
             <div class="today-cards-grid" id="container-unique"></div>
         </div>
 
-        <!-- BLOCK 2: Daily Routines (Takes up Column 4) -->
         <div class="panel daily-panel">
             <div class="panel-header">🔄 Daily Habits <span class="panel-count" id="count-daily">0</span></div>
             <div class="stack-container" id="container-daily"></div>
         </div>
 
-        <!-- BLOCK 3: Backlog (Takes up Column 5) -->
         <div class="panel">
-            <div class="panel-header">📁 Future Backlog <span class="panel-count" id="count-backlog">0</span></div>
-            <div class="stack-container" id="container-backlog"></div>
+            <div class="panel-header">🗓️ Recurring Backlog <span class="panel-count" id="count-recurring-backlog">0</span></div>
+            <div class="stack-container" id="container-recurring-backlog"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">🎯 Future Dates <span class="panel-count" id="count-future-dates">0</span></div>
+            <div class="stack-container" id="container-future-dates"></div>
         </div>
 
     </div>
@@ -171,17 +181,29 @@
 
     scheduleTypeSelect.addEventListener('change', (e) => renderDynamicScheduleInputs(e.target.value));
 
+    // Get clean local standard string yyyy-mm-dd
+    function getLocalDateString(dateObj) {
+        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+        return (new Date(dateObj - userTimezoneOffset)).toISOString().split('T')[0];
+    }
+
     function isDueToday(item) {
         if (item.schedule_type === 'all') return true;
         const currentDayName = today.toLocaleDateString('en-US', { weekday: 'long' });
         const currentMonthDay = today.getDate().toString();
-        const userTimezoneOffset = today.getTimezoneOffset() * 60000;
-        const currentLocalDateString = (new Date(today - userTimezoneOffset)).toISOString().split('T')[0];
+        const currentLocalDateString = getLocalDateString(today);
 
         if (item.schedule_type === 'weekday' && item.schedule_value === currentDayName) return true;
         if (item.schedule_type === 'monthday' && item.schedule_value === currentMonthDay) return true;
         if (item.schedule_type === 'specific' && item.schedule_value === currentLocalDateString) return true;
         return false;
+    }
+
+    // Explicit Overdue validation checker
+    function isOverdue(item) {
+        if (item.schedule_type !== 'specific') return false;
+        const currentLocalDateString = getLocalDateString(today);
+        return item.schedule_value < currentLocalDateString;
     }
 
     function formatCardText(rawText) {
@@ -219,66 +241,92 @@
         allReminders = reminders;
 
         // Clear display targets
+        const overdueStack = document.getElementById('container-overdue');
         const uniqueGrid = document.getElementById('container-unique');
         const dailyStack = document.getElementById('container-daily');
-        const backlogStack = document.getElementById('container-backlog');
+        const recurringBacklogStack = document.getElementById('container-recurring-backlog');
+        const futureDatesStack = document.getElementById('container-future-dates');
         
+        overdueStack.innerHTML = "";
         uniqueGrid.innerHTML = "";
         dailyStack.innerHTML = "";
-        backlogStack.innerHTML = "";
+        recurringBacklogStack.innerHTML = "";
+        futureDatesStack.innerHTML = "";
 
-        // Sort into precise target buckets
+        // Sort arrays
+        const overdueList = [];
         const activeUnique = [];
         const activeDaily = [];
-        const upcomingBacklog = [];
+        const upcomingRecurring = [];
+        const futureDates = [];
 
         reminders.forEach(item => {
-            if (isDueToday(item)) {
+            if (isOverdue(item)) {
+                overdueList.push(item);
+            } else if (isDueToday(item)) {
                 if (item.schedule_type === 'all') {
                     activeDaily.push(item);
                 } else {
                     activeUnique.push(item);
                 }
             } else {
-                upcomingBacklog.push(item);
+                if (item.schedule_type === 'specific') {
+                    futureDates.push(item);
+                } else {
+                    upcomingRecurring.push(item);
+                }
             }
         });
 
+        document.getElementById('count-overdue').innerText = overdueList.length;
         document.getElementById('count-unique').innerText = activeUnique.length;
         document.getElementById('count-daily').innerText = activeDaily.length;
-        document.getElementById('count-backlog').innerText = upcomingBacklog.length;
+        document.getElementById('count-recurring-backlog').innerText = upcomingRecurring.length;
+        document.getElementById('count-future-dates').innerText = futureDates.length;
 
-        // 1. Columns 1, 2, 3: Unique Today Items
+        // 1. Column 1: Overdue items
+        if (overdueList.length === 0) {
+            overdueStack.innerHTML = `<div style="text-align:center; padding:20px; color:#991b1b; font-size:13px;">No overdue items!</div>`;
+        } else {
+            overdueList.forEach(item => overdueStack.insertAdjacentHTML('beforeend', createCardHtml(item)));
+        }
+
+        // 2. Columns 2, 3, 4: Unique Today Items
         if (activeUnique.length === 0) {
-            uniqueGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:#9b7c3e;">No fixed scheduling hits for today.</div>`;
+            uniqueGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:#9b7c3e;">No specific tasks scheduled for today.</div>`;
         } else {
             activeUnique.forEach(item => uniqueGrid.insertAdjacentHTML('beforeend', createCardHtml(item)));
         }
 
-        // 2. Column 4: Daily Recurring Habits
+        // 3. Column 5: Daily Habits
         if (activeDaily.length === 0) {
-            dailyStack.innerHTML = `<div style="text-align:center; padding:20px; color:#555;">No everyday routines active.</div>`;
+            dailyStack.innerHTML = `<div style="text-align:center; padding:20px; color:#555;">No daily habits found.</div>`;
         } else {
             activeDaily.forEach(item => dailyStack.insertAdjacentHTML('beforeend', createCardHtml(item)));
         }
 
-        // 3. Column 5: Categorized Future Backlogs
-        if (upcomingBacklog.length === 0) {
-            backlogStack.innerHTML = `<div style="text-align:center; padding:20px; color:#888;">Backlog completely clear!</div>`;
+        // 4. Column 6: Upcoming Recurring Backlogs (Weekly/Monthly)
+        if (upcomingRecurring.length === 0) {
+            recurringBacklogStack.innerHTML = `<div style="text-align:center; padding:20px; color:#888;">No upcoming weekly/monthly items.</div>`;
         } else {
-            const weekly = upcomingBacklog.filter(i => i.schedule_type === 'weekday');
-            const monthly = upcomingBacklog.filter(i => i.schedule_type === 'monthday');
-            const specific = upcomingBacklog.filter(i => i.schedule_type === 'specific');
+            const weekly = upcomingRecurring.filter(i => i.schedule_type === 'weekday');
+            const monthly = upcomingRecurring.filter(i => i.schedule_type === 'monthday');
 
-            const appendBacklogGroup = (title, itemsList) => {
+            const appendGroup = (targetContainer, title, itemsList) => {
                 if (itemsList.length === 0) return;
-                backlogStack.insertAdjacentHTML('beforeend', `<div class="backlog-sub-header">${title} (${itemsList.length})</div>`);
-                itemsList.forEach(item => backlogStack.insertAdjacentHTML('beforeend', createCardHtml(item)));
+                targetContainer.insertAdjacentHTML('beforeend', `<div class="backlog-sub-header">${title} (${itemsList.length})</div>`);
+                itemsList.forEach(item => targetContainer.insertAdjacentHTML('beforeend', createCardHtml(item)));
             };
 
-            appendBacklogGroup("📅 Weekly Backlog", weekly);
-            appendBacklogGroup("🗓️ Monthly Backlog", monthly);
-            appendBacklogGroup("🎯 Future Targets", specific);
+            appendGroup(recurringBacklogStack, "📅 Weekly Backlog", weekly);
+            appendGroup(recurringBacklogStack, "🗓️ Monthly Backlog", monthly);
+        }
+
+        // 5. Column 7: Future Specific Dates
+        if (futureDates.length === 0) {
+            futureDatesStack.innerHTML = `<div style="text-align:center; padding:20px; color:#888;">No future fixed target dates.</div>`;
+        } else {
+            futureDates.forEach(item => futureDatesStack.insertAdjacentHTML('beforeend', createCardHtml(item)));
         }
     }
 
