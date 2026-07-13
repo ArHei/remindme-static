@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Private Household Inventory</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 8px; }
+    .topbar { display:flex; justify-content:space-between; gap: 16px; align-items:center; margin-bottom: 16px; flex-wrap: wrap; }
+    form, .item { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fff; }
+    .row { display: grid; grid-template-columns: 1.6fr 0.8fr 0.8fr 1fr 1fr auto; gap: 8px; }
+    input, button { padding: 9px; font: inherit; }
+    button { cursor: pointer; }
+    .item.needs { background: #fff7f7; border-color: #f0c0c0; }
+    .meta { color: #666; font-size: 12px; margin-top: 6px; }
+    .actions { margin-top: 10px; display:flex; gap: 8px; }
+    #status { margin: 10px 0; color: #444; }
+    .muted { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Private Household Inventory</h1>
+      <div class="muted">Signed in as: <span id="userInfo">loading…</span></div>
+    </div>
+    <button id="signOutBtn" type="button">Sign out</button>
+  </div>
+
+  <form id="itemForm" style="display:none;">
+    <input type="hidden" id="itemId" />
+    <div class="row">
+      <input id="name" placeholder="Item name" required />
+      <input id="current_qty" type="number" min="0" step="1" placeholder="Current qty" required />
+      <input id="expected_qty" type="number" min="0" step="1" placeholder="Expected qty" required />
+      <input id="last_qty_change" type="date" />
+      <input id="reminder_date" type="date" />
+      <button type="submit">Save</button>
+    </div>
+  </form>
+
+  <div id="status"></div>
+  <div id="list"></div>
+
+  <script src="config.js"></script>
+  <script>
+    const els = {
+      userInfo: document.getElementById('userInfo'),
+      signOutBtn: document.getElementById('signOutBtn'),
+      status: document.getElementById('status'),
+      list: document.getElementById('list'),
+      form: document.getElementById('itemForm'),
+      itemId: document.getElementById('itemId'),
+      name: document.getElementById('name'),
+      current_qty: document.getElementById('current_qty'),
+      expected_qty: document.getElementById('expected_qty'),
+      last_qty_change: document.getElementById('last_qty_change'),
+      reminder_date: document.getElementById('reminder_date')
+    };
+
+    let currentUser = null;
+    let realtimeChannel = null;
+
+    function setStatus(msg) {
+      els.status.textContent = msg || '';
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function sortItems(items) {
+      return items.slice().sort((a, b) => {
+        if (a.needs_attention !== b.needs_attention) return a.needs_attention ? -1 : 1;
+        if (a.shortage !== b.shortage) return b.shortage - a.shortage;
+
+        const aChange = a.last_qty_change ? new Date(a.last_qty_change).getTime() : 0;
+        const bChange = b.last_qty_change ? new Date(b.last_qty_change).getTime() : 0;
+        if (aChange !== bChange) return bChange - aChange;
+
+        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return aCreated - bCreated;
+      });
+    }
+
+    function renderList(items) {
+      if (!items.length) {
+        els.list.innerHTML = '<p>No items yet.</p>';
+        return;
+      }
+
+      els.list.innerHTML = items.map(item => {
+        return `
+          <div class="item ${item.needs_attention ? 'needs' : ''}">
+            <div><strong>${escapeHtml(item.name)}</strong></div>
+            <div>Current: ${item.current_qty} | Expected: ${item.expected_qty}${item.needs_attention ? ` | Need ${item.shortage}` : ''}</div>
+            <div class="meta">
+              Last change: ${item.last_qty_change || '-'} |
+              Reminder: ${item.reminder_date || '-'}
+            </div>
+            <div class="actions">
+              <button type="button" data-edit="${item.id}">Edit</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const item = items.find(x => x.id === btn.dataset.edit);
+          if (item) editItem(item);
+        });
+      });
+    }
+
+    function editItem(item) {
+      els.itemId.value = item.id;
+      els.name.value = item.name;
+      els.current_qty.value = item.current_qty;
+      els.expected_qty.value = item.expected_qty;
+      els.last_qty_change.value = item.last_qty_change || '';
+      els.reminder_date.value = item.reminder_date || '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearForm() {
+      els.itemId.value = '';
+      els.form.reset();
+    }
+
+    async function getCurrentUser() {
+      const { data, error } = await supabaseClient.auth.getUser();
+      if (error) throw error;
+      return data.user;
+    }
+
+    async function loadItems() {
+      if (!currentUser) return;
+      setStatus('Loading...');
+
+      const { data, error } = await supabaseClient
+        .from('inventory_view')
+        .select('*')
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        setStatus('Load failed: ' + error.message);
+        return;
+      }
+
+      renderList(sortItems(data || []));
+      setStatus('');
+    }
+
+    els.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentUser) return;
+
+      const id = els.itemId.value || null;
+      const name = els.name.value.trim();
+      const current_qty = Number(els.current_qty.value);
+      const expected_qty = Number(els.expected_qty.value);
+      const last_qty_change = els.last_qty_change.value || null;
+      const reminder_date = els.reminder_date.value || null;
+      const now = new Date().toISOString();
+
+      if (!name) return alert('Item name is required');
+      if (!Number.isInteger(current_qty) || current_qty < 0) return alert('Current qty must be a non-negative integer');
+      if (!Number.isInteger(expected_qty) || expected_qty < 0) return alert('Expected qty must be a non-negative integer');
+
+      const payload = {
+        user_id: currentUser.id,
+        name,
+        current_qty,
+        expected_qty,
+        last_qty_change,
+        reminder_date,
+        updated_at: now
+      };
+
+      const result = id
+        ? await supabaseClient.from('inventory').update(payload).eq('id', id).eq('user_id', currentUser.id)
+        : await supabaseClient.from('inventory').insert(payload);
+
+      if (result.error) {
+        alert('Save failed: ' + result.error.message);
+        return;
+      }
+
+      clearForm();
+      await loadItems();
+    });
+
+    async function setupRealtime() {
+      if (realtimeChannel) {
+        await supabaseClient.removeChannel(realtimeChannel);
+      }
+
+      realtimeChannel = supabaseClient
+        .channel('inventory_items_changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'inventory',
+          filter: `user_id=eq.${currentUser.id}`
+        }, () => loadItems())
+        .subscribe();
+    }
+
+    els.signOutBtn.addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      location.href = 'index.html';
+    });
+
+    async function init() {
+      try {
+        currentUser = await getCurrentUser();
+
+        if (!currentUser) {
+          location.href = 'index.html';
+          return;
+        }
+
+        els.userInfo.textContent = currentUser.email || currentUser.id;
+        els.form.style.display = 'block';
+        await setupRealtime();
+        await loadItems();
+      } catch (err) {
+        location.href = 'index.html';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
