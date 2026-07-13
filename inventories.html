@@ -3,68 +3,128 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Private Household Inventory</title>
+  <title>Inventory</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; }
-    h1 { margin-bottom: 8px; }
-    .topbar { display:flex; justify-content:space-between; gap: 16px; align-items:center; margin-bottom: 16px; flex-wrap: wrap; }
-    form, .item { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fff; }
-    .row { display: grid; grid-template-columns: 1.6fr 0.8fr 0.8fr 1fr 1fr auto; gap: 8px; }
-    input, button { padding: 9px; font: inherit; }
-    button { cursor: pointer; }
-    .item.needs { background: #fff7f7; border-color: #f0c0c0; }
-    .meta { color: #666; font-size: 12px; margin-top: 6px; }
-    .actions { margin-top: 10px; display:flex; gap: 8px; }
-    #status { margin: 10px 0; color: #444; }
-    .muted { color: #666; font-size: 13px; }
+    body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .dashboard-container { max-width: 2300px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+    .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+    .add-reminder-form { background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; max-width: 900px; margin: 0 auto 30px auto; display: flex; flex-direction: column; gap: 12px; }
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 6px; flex: 1 1 160px; min-width: 0; }
+    .field label { font-size: 13px; font-weight: 700; color: #374151; }
+    .add-reminder-form input[type="text"],
+    .add-reminder-form input[type="number"],
+    .add-reminder-form input[type="date"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .add-reminder-form button { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .cancel-btn { background: #6b7280 !important; }
+
+    .inventory-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 20px; align-items: start; }
+    @media (min-width: 700px) { .inventory-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1200px) { .inventory-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 1700px) { .inventory-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .panel { background: #f4f5f7; border-radius: 10px; padding: 18px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); min-height: 350px; }
+    .panel-header { font-size: 1rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+    .panel-count { background: #e5e7eb; color: #4b5563; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+
+    .stack-container { display: flex; flex-direction: column; gap: 12px; }
+    .card { background: white; padding: 14px; border-radius: 6px; border-left: 4px solid #9ca3af; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 10px; }
+    .card-text { font-size: 14px; color: #1f2937; word-break: break-word; line-height: 1.4; }
+    .card-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e5e7eb; color: #4b5563; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
+    .card-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    .action-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+    .action-btn.archive { background: #fee2e2; color: #dc2626; }
+
+    #status { margin: 10px 0 0; color: #4b5563; }
+    .qty-text { font-size: 14px; color: #1f2937; font-family: inherit; }
+    .small-meta { font-size: 13px; color: #6b7280; font-family: inherit; }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div>
-      <h1>Private Household Inventory</h1>
-      <div class="muted">Signed in as: <span id="userInfo">loading…</span></div>
+  <div class="dashboard-container">
+    <div class="header">
+      <div>
+        <h2 style="margin:0;">Inventory</h2>
+        <div id="status"></div>
+      </div>
+      <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
     </div>
-    <button id="signOutBtn" type="button">Sign out</button>
+
+    <form id="itemForm" class="add-reminder-form" style="display:none;">
+      <input type="hidden" id="itemId" />
+
+      <div class="form-row">
+        <div class="field">
+          <label for="name">Item name</label>
+          <input id="name" type="text" placeholder="e.g. Tissue" required />
+        </div>
+        <div class="field" style="max-width: 160px;">
+          <label for="current_qty">Current qty</label>
+          <input id="current_qty" type="number" min="0" step="1" placeholder="0" required />
+        </div>
+        <div class="field" style="max-width: 160px;">
+          <label for="expected_qty">Expected qty</label>
+          <input id="expected_qty" type="number" min="0" step="1" placeholder="0" required />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field" style="max-width: 220px;">
+          <label for="last_qty_change">Last change date</label>
+          <input id="last_qty_change" type="date" />
+        </div>
+        <div class="field" style="max-width: 220px;">
+          <label for="reminder_date">Reminder date</label>
+          <input id="reminder_date" type="date" />
+        </div>
+        <div class="field" style="justify-content:flex-end; flex: 0 0 auto; min-width: 170px;">
+          <label>&nbsp;</label>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="saveBtn">Save</button>
+            <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div id="list" class="inventory-grid"></div>
   </div>
 
-  <form id="itemForm" style="display:none;">
-    <input type="hidden" id="itemId" />
-    <div class="row">
-      <input id="name" placeholder="Item name" required />
-      <input id="current_qty" type="number" min="0" step="1" placeholder="Current qty" required />
-      <input id="expected_qty" type="number" min="0" step="1" placeholder="Expected qty" required />
-      <input id="last_qty_change" type="date" />
-      <input id="reminder_date" type="date" />
-      <button type="submit">Save</button>
-    </div>
-  </form>
-
-  <div id="status"></div>
-  <div id="list"></div>
-
-  <script src="config.js"></script>
   <script>
     const els = {
-      userInfo: document.getElementById('userInfo'),
-      signOutBtn: document.getElementById('signOutBtn'),
       status: document.getElementById('status'),
-      list: document.getElementById('list'),
+      logoutBtn: document.getElementById('logoutBtn'),
       form: document.getElementById('itemForm'),
       itemId: document.getElementById('itemId'),
       name: document.getElementById('name'),
       current_qty: document.getElementById('current_qty'),
       expected_qty: document.getElementById('expected_qty'),
       last_qty_change: document.getElementById('last_qty_change'),
-      reminder_date: document.getElementById('reminder_date')
+      reminder_date: document.getElementById('reminder_date'),
+      list: document.getElementById('list'),
+      cancelBtn: document.getElementById('cancelBtn')
     };
 
     let currentUser = null;
     let realtimeChannel = null;
 
-    function setStatus(msg) {
-      els.status.textContent = msg || '';
+    function setStatus(msg) { els.status.textContent = msg || ''; }
+
+    function toDateOnly(v) {
+      return v ? String(v).slice(0, 10) : '';
     }
 
     function escapeHtml(str) {
@@ -78,12 +138,17 @@
 
     function sortItems(items) {
       return items.slice().sort((a, b) => {
-        if (a.needs_attention !== b.needs_attention) return a.needs_attention ? -1 : 1;
-        if (a.shortage !== b.shortage) return b.shortage - a.shortage;
+        const aNeeds = Number(a.current_qty) < Number(a.expected_qty);
+        const bNeeds = Number(b.current_qty) < Number(b.expected_qty);
+        if (aNeeds !== bNeeds) return aNeeds ? -1 : 1;
 
-        const aChange = a.last_qty_change ? new Date(a.last_qty_change).getTime() : 0;
-        const bChange = b.last_qty_change ? new Date(b.last_qty_change).getTime() : 0;
-        if (aChange !== bChange) return bChange - aChange;
+        const aShort = Math.max(0, Number(a.expected_qty) - Number(a.current_qty));
+        const bShort = Math.max(0, Number(b.expected_qty) - Number(b.current_qty));
+        if (aShort !== bShort) return bShort - aShort;
+
+        const aLast = a.last_qty_change ? new Date(a.last_qty_change).getTime() : 0;
+        const bLast = b.last_qty_change ? new Date(b.last_qty_change).getTime() : 0;
+        if (aLast !== bLast) return bLast - aLast;
 
         const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
         const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -93,25 +158,42 @@
 
     function renderList(items) {
       if (!items.length) {
-        els.list.innerHTML = '<p>No items yet.</p>';
+        els.list.innerHTML = '<div class="panel"><div class="panel-header">No items</div><div class="small-meta">Add your first item above.</div></div>';
         return;
       }
 
-      els.list.innerHTML = items.map(item => {
+      const html = items.map(item => {
+        const shortage = Math.max(0, Number(item.expected_qty) - Number(item.current_qty));
+        const needs = Number(item.current_qty) < Number(item.expected_qty);
+
         return `
-          <div class="item ${item.needs_attention ? 'needs' : ''}">
-            <div><strong>${escapeHtml(item.name)}</strong></div>
-            <div>Current: ${item.current_qty} | Expected: ${item.expected_qty}${item.needs_attention ? ` | Need ${item.shortage}` : ''}</div>
-            <div class="meta">
-              Last change: ${item.last_qty_change || '-'} |
-              Reminder: ${item.reminder_date || '-'}
+          <div class="panel">
+            <div class="panel-header">
+              <span>${escapeHtml(item.name)}</span>
+              <span class="panel-count">${needs ? 'NEED' : 'OK'}</span>
             </div>
-            <div class="actions">
-              <button type="button" data-edit="${item.id}">Edit</button>
+            <div class="stack-container">
+              <div class="card">
+                <div class="card-text">
+                  <div class="qty-text">Current qty: ${item.current_qty}</div>
+                  <div class="qty-text">Expected qty: ${item.expected_qty}</div>
+                  ${needs ? `<div class="qty-text">Shortage: ${shortage}</div>` : ''}
+                </div>
+                <div class="card-meta">
+                  <span class="badge">${needs ? 'Need refill' : 'Sufficient'}</span>
+                </div>
+                <div class="small-meta">Last change: ${toDateOnly(item.last_qty_change) || '-'}</div>
+                <div class="small-meta">Reminder: ${toDateOnly(item.reminder_date) || '-'}</div>
+                <div class="card-actions">
+                  <button class="action-btn" type="button" data-edit="${item.id}">Edit</button>
+                </div>
+              </div>
             </div>
           </div>
         `;
       }).join('');
+
+      els.list.innerHTML = html;
 
       document.querySelectorAll('[data-edit]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -126,8 +208,8 @@
       els.name.value = item.name;
       els.current_qty.value = item.current_qty;
       els.expected_qty.value = item.expected_qty;
-      els.last_qty_change.value = item.last_qty_change || '';
-      els.reminder_date.value = item.reminder_date || '';
+      els.last_qty_change.value = toDateOnly(item.last_qty_change);
+      els.reminder_date.value = toDateOnly(item.reminder_date);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -200,12 +282,10 @@
     });
 
     async function setupRealtime() {
-      if (realtimeChannel) {
-        await supabaseClient.removeChannel(realtimeChannel);
-      }
+      if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
 
       realtimeChannel = supabaseClient
-        .channel('inventory_items_changes')
+        .channel('inventory_changes')
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
@@ -215,22 +295,21 @@
         .subscribe();
     }
 
-    els.signOutBtn.addEventListener('click', async () => {
+    els.logoutBtn.addEventListener('click', async () => {
       await supabaseClient.auth.signOut();
       location.href = 'index.html';
     });
 
+    els.cancelBtn.addEventListener('click', clearForm);
+
     async function init() {
       try {
         currentUser = await getCurrentUser();
-
         if (!currentUser) {
           location.href = 'index.html';
           return;
         }
-
-        els.userInfo.textContent = currentUser.email || currentUser.id;
-        els.form.style.display = 'block';
+        els.form.style.display = 'flex';
         await setupRealtime();
         await loadItems();
       } catch (err) {
